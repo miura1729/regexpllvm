@@ -1,0 +1,27 @@
+RegexpLLVM -- Regular expression matcher for llvmruby sample
+
+-- Description
+   RegexpLLVM is very poor regular expression matcher. This program compiles 
+   regular expression to llvm(bitcode format) and execute it on the fly.
+   
+-- Install
+   Copy regexpllvm directory to anywere (except /dev/null ...).
+   This program needs llvmruby.
+   (http://github.com/tombagby/llvmruby/tree/master)
+
+-- Usage
+   ruby lib/regexpllvm.rb
+
+-- Bugs
+   Many. This program generate bad DFA .
+
+-- Author
+   Miura Hideki (miura1729)
+   e-mail: m-72 at tf6.so-net.ne.jp
+   blog:   http://d.hatena.ne.jp/miura1729 (in Japanese)
+
+-- License
+
+ under the Ruby's License
+
+
