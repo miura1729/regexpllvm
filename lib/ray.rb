@@ -1,10 +1,15 @@
 OBJS = [
   # オブジェクト種類     中心座標          パラメータ      反射率  色(1白 0黒)
-#  [:BALL,          1.0,     2.0,   10.0,   4.0, 0, 0,       0,      1],
-#  [:BALL,          -4.0,   -8.0,   15.0,   5.0, 0, 0,       0.5,   1],
- [:BALL,          4.0,    -1.0,   50.0,   15.0, 0, 0,       0,    1],
+  [:BALL,         -6.0,     2.0,   20.0,   7.0, 0, 0,       1,      1],
+  [:BALL,          -2.0,   -2.0,   6.0,   2.0, 0, 0,      0,   1],
+  [:BALL,          1.0,    -1.0,   15.0,    2.0, 0, 0,       1,    1],
   # PLANE(平面)は平面上の1点と法線ベクトルを指定する
-  [:PLANE,         0.0, -50.0, 0.0,   0.0, -1.0, 0,   1,    1],
+  [:PLANE,         0.0, -35.0, 0.0,   0.0, 1.0, 0,   0,    1],
+]
+
+LIGHTS = [
+  # 光源種類       座標              パラメータ    光源強さ
+  [:POINT,         0.0, 0.0, 0.0,     0, 0, 0, 0,   1]
 ]
 
 OBJ_KIND = 0
@@ -19,9 +24,9 @@ OBJ_PLANE_HY = 5
 OBJ_PLANE_HZ = 6
 
 OBJ_REFRECT_RATIO = 7
-OBJ_REFRECT_COLOR = 8
+OBJ_COLOR = 8
 
-MAX_REF_NUM = 2
+MAX_REF_NUM = 10
 
 
 def make_bmp(image)
@@ -29,6 +34,7 @@ def make_bmp(image)
   iheader = [12, 256, 256, 1, 8].pack("Vvvvv")
   File.open("ray.bmp", "w") do |fp|
     fp.print fheader
+
     fp.print iheader
     0.upto(256) do |n|
       fp.print [n, n, n].pack('c3')
@@ -47,7 +53,7 @@ def get_color(sx, sy, sz, ox, oy, oz, objlst, refnum)
   covz = coz - oz
   vs = Math.sqrt(covx * covx + covy * covy + covz * covz)
   if vs == 0 then
-    return 0
+    return 1.0
   end
   covx = covx / vs
   covy = covy / vs
@@ -71,8 +77,10 @@ def get_color(sx, sy, sz, ox, oy, oz, objlst, refnum)
 
     # 内積を取って色を計算する.散乱光による色がbcolに入る
     bcol = hvx * covx + hvy * covy + hvz * covz
+    bcol = -bcol
+  #  bcol = bcol.abs
     if bcol < 0 then
-      return 0.0
+      return 1.0
     end
     
   when :PLANE
@@ -87,21 +95,22 @@ def get_color(sx, sy, sz, ox, oy, oz, objlst, refnum)
     
     # 内積を取って色を計算する.散乱光による色がbcolに入る
     bcol = hvx * covx + hvy * covy + hvz * covz
+    bcol = bcol.abs
     if bcol < 0 then
-      return 0.0
+      return 1.0
     end
-
   else
-    return 0.0
+    return 1.0
   end
 
   # 反射
   if refnum < MAX_REF_NUM then
     ip = covx * hvx + covy * hvy + covz * hvz
+    ip = -ip
     rvx = 2 * ip * hvx - covx
     rvy = 2 * ip * hvy - covy
     rvz = 2 * ip * hvz - covz
-    return bcol * (1.0 - cobj[OBJ_REFRECT_RATIO]) + get_color(rvx, rvy, rvz, cox, coy, coz, objlst, refnum + 1) * cobj[OBJ_REFRECT_RATIO]
+    return (bcol * (1.0 - cobj[OBJ_REFRECT_RATIO])) + (get_color(rvx, rvy, rvz, cox, coy, coz, objlst, refnum + 1) * cobj[OBJ_REFRECT_RATIO])
   else
     return bcol * (1.0 - cobj[OBJ_REFRECT_RATIO])
   end
@@ -109,9 +118,9 @@ end
 
 def collision(sx, sy, sz, ox, oy, oz, objlst)
   # 与えられた座標データから正規化された視線ベクトルを得る
-  vx = sx - ox
-  vy = sy - oy
-  vz = sz - oz
+  vx = sx
+  vy = sy
+  vz = sz
   vs = Math.sqrt(vx * vx + vy * vy + vz * vz)
   vx = vx / vs
   vy = vy / vs
@@ -123,22 +132,31 @@ def collision(sx, sy, sz, ox, oy, oz, objlst)
 
   objlst.each do |obj|
     cx = obj[OBJ_CENTER_X] - ox
-    cy = obj[OBJ_CENTER_Y] - ox
-    cz = obj[OBJ_CENTER_Z] - ox
+    cy = obj[OBJ_CENTER_Y] - oy
+    cz = obj[OBJ_CENTER_Z] - oz
   
     case obj[OBJ_KIND]
     when :BALL
       # 球の場合の衝突判定
       siz = obj[OBJ_BALL_SIZE]
-      a = vx * vx + vy * vy + vz * vz
       b = (vx * cx + vy * cy + vz * cz)
       c = cx * cx + cy * cy + cz * cz  - siz * siz
 #      print "#{a} #{b} #{c} \n"
-      h = b * b - a * c
+      h = b * b - c
       if h < 0 then
         next
       end
-      t = (b + Math.sqrt(h)) / a
+      h1 = Math.sqrt(h)
+      if b - h1 > 0.001 then
+        t = b - h1
+      else
+        t = b + h1
+      end
+
+      if t.abs <= 0.001 then
+        next
+      end
+
       if !mint or t < mint then
         mint = t
         cobj = obj
@@ -152,10 +170,12 @@ def collision(sx, sy, sz, ox, oy, oz, objlst)
 
       ta = (hvx * cx + hvy * cy + hvz * cz)
       tb = (hvx * vx + hvy * vy + hvz * vz)
+      #ta = -ta
 
-      if tb == 0 or (t = ta / tb) < 0 then
+      if tb == 0 or (t = ta / tb) < 0.0001 then
         next
       end
+
       if !mint or t < mint then
         mint = t
         cobj = obj
