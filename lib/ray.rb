@@ -1,15 +1,15 @@
 OBJS = [
   # オブジェクト種類     中心座標          パラメータ      反射率  色(1白 0黒)
-  [:BALL,         -6.0,     2.0,   20.0,   7.0, 0, 0,       1,      1],
-  [:BALL,          -2.0,   -2.0,   6.0,   2.0, 0, 0,      0,   1],
-  [:BALL,          1.0,    -1.0,   15.0,    2.0, 0, 0,       1,    1],
+  [:BALL,         -6.0,     2.0,   20.0,   7.0, 0, 0,       0,      1],
+  [:BALL,          -2.0,   -2.0,   6.0,   2.0, 0, 0,      0.5,   1],
+  [:BALL,          1.0,    -1.0,   15.0,    2.0, 0, 0,    0.5,    1],
   # PLANE(平面)は平面上の1点と法線ベクトルを指定する
   [:PLANE,         0.0, -35.0, 0.0,   0.0, 1.0, 0,   0,    1],
 ]
 
 LIGHTS = [
   # 光源種類       座標              パラメータ    光源強さ
-  [:POINT,         0.0, 0.0, 0.0,     0, 0, 0, 0,   1]
+  [:POINT,         10.0, 30.0, 0.0,     0, 0, 0, 0,   1]
 ]
 
 OBJ_KIND = 0
@@ -46,8 +46,11 @@ def make_bmp(image)
 end
 
 def get_color(sx, sy, sz, ox, oy, oz, objlst, refnum)
-  cox, coy, coz, cobj = collision(sx, sy, sz, ox, oy, oz, objlst)
+  t, cox, coy, coz, cobj = intersect(sx, sy, sz, ox, oy, oz, objlst)
   # 視点から衝突箇所までのベクトルを得る
+  if t == 0 then
+    return 1.0
+  end
   covx = cox - ox
   covy = coy - oy
   covz = coz - oz
@@ -103,20 +106,43 @@ def get_color(sx, sy, sz, ox, oy, oz, objlst, refnum)
     return 1.0
   end
 
+  # 光源
+  ip = covx * hvx + covy * hvy + covz * hvz
+  ip = -ip
+  rvx = 2 * ip * hvx - covx
+  rvy = 2 * ip * hvy - covy
+  rvz = 2 * ip * hvz - covz
+#=begin
+   bcol = bcol * 0.5
+   LIGHTS.each do |lit|
+     lposx = lit[OBJ_CENTER_X]
+     lposy = lit[OBJ_CENTER_Y]
+     lposz = lit[OBJ_CENTER_Z]
+     lvx = cox - lposx
+     lvy = coy - lposy
+     lvz = coz - lposz
+     lvs = Math.sqrt(lvx * lvx + lvy * lvy + lvz * lvz)
+
+     t, dmyx, dmyy, dmyz, dmyo = intersect(lvx, lvy, lvz, lposx, lposy, lposz, objlst)
+     if t and  (t - 1).abs < 0.001 then
+       c = (lvx * sx + lvz * sy + lvz * sz) / lvs * 0.5
+#       c = -c.abs
+       if c > 0 then
+         bcol += c
+       end
+     else
+     end
+  end
+#=end
   # 反射
   if refnum < MAX_REF_NUM then
-    ip = covx * hvx + covy * hvy + covz * hvz
-    ip = -ip
-    rvx = 2 * ip * hvx - covx
-    rvy = 2 * ip * hvy - covy
-    rvz = 2 * ip * hvz - covz
     return (bcol * (1.0 - cobj[OBJ_REFRECT_RATIO])) + (get_color(rvx, rvy, rvz, cox, coy, coz, objlst, refnum + 1) * cobj[OBJ_REFRECT_RATIO])
   else
     return bcol * (1.0 - cobj[OBJ_REFRECT_RATIO])
   end
 end
 
-def collision(sx, sy, sz, ox, oy, oz, objlst)
+def intersect(sx, sy, sz, ox, oy, oz, objlst)
   # 与えられた座標データから正規化された視線ベクトルを得る
   vx = sx
   vy = sy
@@ -184,9 +210,9 @@ def collision(sx, sy, sz, ox, oy, oz, objlst)
   end
 
   if mint then
-    [mint * vx + ox, mint * vy + oy , mint * vz + oz, cobj]
+    [mint / vs, mint * vx + ox, mint * vy + oy , mint * vz + oz, cobj]
   else
-    [0, 0, 0, [nil]]
+    [nil, 0, 0, 0, [nil]]
   end
 end
     
