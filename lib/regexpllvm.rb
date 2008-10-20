@@ -198,6 +198,7 @@ class RegexpMatcherRuby66<RegexpMatcher
 end
 
 require 'tempfile'
+require 'rubygems'
 require 'llvm'
 
 class RegexpMatcherLLVM<RegexpMatcher  
@@ -317,7 +318,7 @@ if __FILE__ == $0 then
   p all.size
   
   Benchmark.bm do |x|
-    x.report("Regident        ") {
+    x.report("Ruby's          ") {
       (/ruby.*perl/ =~ all)
       (/perl.*ruby/ =~ all)
     }
